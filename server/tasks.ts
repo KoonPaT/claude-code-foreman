@@ -147,6 +147,9 @@ export async function finishTask(a: { task_id: string; action: "merge" | "discar
   if (!metadata?.worktree) throw new Error("task has no worktree");
   if ((await statusOf(a.task_id)).status === "running") throw new Error("task is still running");
   const info = metadata as WorktreeInfo;
+  try {
+    await api<void>("POST", "/instance/dispose", { directory: info.worktree });
+  } catch {}
   if (a.action === "merge") return mergeWorktree(info);
   if (a.action === "discard") return discardWorktree(info);
   throw new Error(`action must be merge or discard`);

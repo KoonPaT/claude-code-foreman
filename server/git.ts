@@ -77,13 +77,28 @@ export function mergeWorktree(info: WorktreeInfo): string {
     throw new Error(`merge conflict in: ${conflicts.join(", ")}; worktree kept`);
   }
   const sha = git(repo, "rev-parse", "--short", "HEAD");
-  git(repo, "worktree", "remove", worktree);
+  let leftover: string | undefined;
+  try {
+    git(repo, "worktree", "remove", worktree);
+  } catch {
+    git(repo, "worktree", "prune");
+    leftover = worktree;
+  }
   git(repo, "branch", "-d", branch);
-  return `merged ${branch} into ${basename(repo)} (${sha}); worktree removed`;
+  const kept = leftover ? `; worktree folder still on disk (in use): ${leftover} — delete it later` : "; worktree removed";
+  return `merged ${branch} into ${basename(repo)} (${sha})${kept}`;
 }
 
 export function discardWorktree(info: WorktreeInfo): string {
-  git(info.repo, "worktree", "remove", "--force", info.worktree);
-  git(info.repo, "branch", "-D", info.branch);
-  return `discarded ${info.branch}; worktree removed`;
+  const { repo, branch, worktree } = info;
+  let leftover: string | undefined;
+  try {
+    git(repo, "worktree", "remove", "--force", worktree);
+  } catch {
+    leftover = worktree;
+  }
+  git(repo, "worktree", "prune");
+  git(repo, "branch", "-D", branch);
+  const kept = leftover ? `; worktree folder still on disk (in use): ${leftover} — delete it later` : "; worktree removed";
+  return `discarded ${branch}${kept}`;
 }
