@@ -29,7 +29,6 @@ const tools = [
 ].map(([name, description, inputSchema]) => ({ name, description, inputSchema }));
 
 const send = (m: object) => process.stdout.write(JSON.stringify({ jsonrpc: "2.0", ...m }) + "\n");
-let ready: Promise<void> | undefined;
 
 async function handle(msg: any) {
   const { id, method, params } = msg;
@@ -41,7 +40,7 @@ async function handle(msg: any) {
     try {
       const h = Object.hasOwn(handlers, params?.name) ? handlers[params.name] : undefined;
       if (!h) throw new Error(`unknown tool ${params?.name}`);
-      await (ready ??= ensureServer().catch((e) => ((ready = undefined), Promise.reject(e))));
+      await ensureServer(); // every call: the detached server may have died since the last one
       return send({ id, result: { content: [{ type: "text", text: await h(params.arguments ?? {}) }] } });
     } catch (e: any) {
       console.error(e);
