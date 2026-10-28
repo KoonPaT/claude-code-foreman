@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
@@ -101,6 +101,25 @@ test("mergeWorktree catches untracked files inside new directories", () => {
   writeFileSync(join(r, "src/new.ts"), "local\n");
   assert.throws(() => mergeWorktree(w), /uncommitted changes in src\/new\.ts/);
   assert.ok(existsSync(w.worktree));
+});
+
+test("mergeWorktree still merges when the worktree folder is locked", { skip: process.platform !== "win32" }, async () => {
+  const r = repo();
+  const w = createWorktree(r, "locked");
+  commitIn(w.worktree, "b.txt", "b\n");
+  // opencode holds the worktree folder as its process cwd; Windows refuses to delete a dir that
+  // is some process's cwd (an open file handle won't block: libuv opens with FILE_SHARE_DELETE).
+  const child = spawn(process.execPath, ["-e", "setInterval(()=>{},1e3)"], { cwd: w.worktree, stdio: "ignore" });
+  try {
+    await new Promise((res) => setTimeout(res, 100));
+    const out = mergeWorktree(w);
+    assert.match(out, /merged/);
+    assert.match(out, /still on disk/);
+    assert.equal(git(r, "branch", "--list", w.branch), "");
+    assert.ok(existsSync(w.worktree));
+  } finally {
+    child.kill();
+  }
 });
 
 test("discardWorktree removes branch and dir", () => {
