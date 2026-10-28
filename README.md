@@ -31,7 +31,7 @@ It ships:
 ## Install
 
 ```
-/plugin marketplace add <path-to-this-repo-or-git-url>
+/plugin marketplace add KoonPaT/claude-code-foreman
 /plugin install opencode-foreman@claude-code-foreman
 ```
 
@@ -95,3 +95,7 @@ the `watch:` command (`opencode attach <url> --session <id>`) to attach.
 npm test                                  # unit + MCP protocol + git tests
 FOREMAN_E2E=1 node --test test/e2e.test.ts  # real opencode, free model opencode/big-pickle
 ```
+
+## License
+
+[MIT](LICENSE)

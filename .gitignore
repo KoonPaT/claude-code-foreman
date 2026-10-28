@@ -1,6 +1,2 @@
-# graft's local cache — regenerable, not committed (run `graft build`).
-/graft/.cache/
-/graft/.graph/
-
 # graft's local graph cache — regenerable, not committed (run `graft build`).
 /graft/
