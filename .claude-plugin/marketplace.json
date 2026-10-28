@@ -1,0 +1,11 @@
+{
+  "name": "claude-code-foreman",
+  "owner": { "name": "Sutthipat Litthibanlue" },
+  "plugins": [
+    {
+      "name": "opencode-foreman",
+      "source": "./",
+      "description": "Claude as foreman, opencode as worker"
+    }
+  ]
+}

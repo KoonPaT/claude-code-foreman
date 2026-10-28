@@ -1,0 +1,12 @@
+{
+  "name": "opencode-foreman",
+  "version": "0.1.0",
+  "description": "Claude as foreman, opencode as worker",
+  "author": { "name": "Sutthipat Litthibanlue" },
+  "mcpServers": {
+    "opencode-foreman": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/server/foreman.ts"]
+    }
+  }
+}
