@@ -74,6 +74,13 @@ Just ask Claude, naming a model if you want one:
 
 If you name no model, opencode's default is used.
 
+## Watching workers
+
+Every `start_task` returns a `web:` URL and a `watch:` command for the new
+session. Open the `web:` URL in a browser to watch the worker live, or run
+the `watch:` command (`opencode attach <url> --session <id>`) to attach.
+`list_tasks` gives a quick summary of running and finished tasks.
+
 ## Tests
 
 ```

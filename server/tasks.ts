@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { api, deriveStatus, parseModel } from "./opencode.ts";
+import { api, baseUrl, deriveStatus, parseModel } from "./opencode.ts";
 import { createWorktree, discardWorktree, mergeWorktree } from "./git.ts";
 import type { WorktreeInfo } from "./git.ts";
 import type { Message, StatusResult } from "./opencode.ts";
@@ -53,19 +53,25 @@ export async function startTask(a: {
   title?: string;
   agent?: string;
   worktree?: boolean;
+  readonly?: boolean;
 }): Promise<string> {
   if (a.model) parseModel(a.model);
+  if (a.readonly && a.worktree) throw new Error("readonly tasks cannot use a worktree");
   const title = a.title ?? a.prompt.slice(0, 50);
   const wt = a.worktree ? createWorktree(a.directory ?? process.cwd(), title) : undefined;
   const directory = wt?.worktree ?? a.directory ?? process.cwd();
+  // ponytail: readonly only denies the `edit` tool; bash can still write files. Upgrade path: also
+  // deny bash write patterns (e.g. "*> *", "*writeFile*") for a fully read-only worker.
+  const permission = a.readonly ? [...PERMISSION, { permission: "edit", pattern: "*", action: "deny" }] : PERMISSION;
   const s = await api<Session>("POST", "/session", {
     directory,
-    body: { title: PREFIX + title, metadata: { foreman: true, ...wt }, permission: PERMISSION },
+    body: { title: PREFIX + title, metadata: { foreman: true, ...wt }, permission },
   });
   await api<void>("POST", `/session/${s.id}/prompt_async`, { directory, body: promptBody(a.prompt, a.model, a.agent) });
-  return `task_id: ${s.id}` + (wt ? `
-branch: ${wt.branch}
-worktree: ${wt.worktree}` : "");
+  const out = [`task_id: ${s.id}`];
+  if (wt) out.push(`branch: ${wt.branch}`, `base: ${wt.base}`, `worktree: ${wt.worktree}`);
+  out.push(`watch: opencode attach ${baseUrl()} --session ${s.id}`, `web: ${baseUrl()}`);
+  return out.join("\n");
 }
 
 export async function taskStatus(a: { task_id: string }): Promise<string> {

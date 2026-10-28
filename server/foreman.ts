@@ -14,6 +14,7 @@ const tools = [
     prompt: str("task for the worker"), model, directory: str("working directory; defaults to the server's cwd"),
     title: str("short task title"), agent: str("opencode agent name"),
     worktree: { type: "boolean", description: "run in an isolated git worktree on a new branch" },
+    readonly: { type: "boolean", description: "deny file edits; for review/analysis tasks" },
   }, ["prompt"])],
   ["task_status", "Get a task's status (running, done, needs_input, error) and latest reply", obj(tid, ["task_id"])],
   ["wait_task", "Block until any of the tasks leaves running, or timeout", obj({
