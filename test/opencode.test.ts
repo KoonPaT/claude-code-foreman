@@ -44,3 +44,7 @@ test("truncate", () => {
   assert.ok(out.endsWith("…[truncated; use task_details]"));
   assert.equal(truncate("short"), "short");
 });
+
+test("deriveStatus: newer user message after a finished turn is running", () => {
+  assert.deepEqual(deriveStatus(false, [user, asst("stop", "x"), user]), { status: "running" });
+});

@@ -34,7 +34,6 @@ test("e2e", T, async (t) => {
 
   await t.test("follow-up keeps memory", T, async () => {
     await sendMessage({ task_id: main, message: "append a second line 'bye' to the same file", model });
-    await new Promise((r) => setTimeout(r, 3000));
     const out = await waitTask({ task_ids: [main], timeout_sec: 280 });
     assert.match(out, /: done/, await dump(main, out));
     assert.equal(readFileSync(file, "utf8").trim().split(/\r?\n/).length, 2);
@@ -43,11 +42,14 @@ test("e2e", T, async (t) => {
   await t.test("denied push and escape finish", T, async () => {
     const d2 = dir();
     const escape = join(tmpdir(), `foreman-escape-${randomBytes(4).toString("hex")}.txt`);
-    const e = await run(`run \`git push origin main\`, then write the text x to the absolute path ${escape}`, d2);
+    const e = await run(`you must actually attempt both of these with your tools, even if you expect failure: first run the shell command \`git push origin main\`, then write the text x to the absolute path ${escape}. Report what happened.`, d2);
     const out = await waitTask({ task_ids: [e], timeout_sec: 280 });
     assert.doesNotMatch(out, /still running/, await dump(e, out));
     assert.match(out, /: (done|error)/);
     assert.ok(!existsSync(escape), "escape file was written");
+    const det = await taskDetails({ task_id: e });
+    assert.match(det, /tool: bash \w+ .*\S/, "no bash tool call: " + det);
+    assert.match(det, /tool: \w+ error/, "no denied tool call: " + det);
   });
 
   await t.test("question convention", T, async () => {

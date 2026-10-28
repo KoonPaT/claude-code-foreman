@@ -18,7 +18,7 @@ export function truncate(text: string, max = 4000): string {
 }
 
 export function deriveStatus(busy: boolean, messages: Message[]): StatusResult {
-  if (busy) return { status: "running" };
+  if (busy || messages.at(-1)?.info.role === "user") return { status: "running" };
   const last = messages.findLast((m) => m.info.role === "assistant");
   if (!last) return { status: "running" };
   const text = last.parts.filter((p) => p.type === "text" && p.text).map((p) => p.text).join("\n");
