@@ -39,12 +39,15 @@ review tasks.
    - `error`: read the message. Use `task_details` only if it's unclear.
      Then re-send or re-dispatch.
 4. **Review.** When an implementation task is `done`, dispatch a **fresh**
-   review task (`start_task`, no worktree, `directory` = the implementer's
-   worktree path). Tell the reviewer to run `git diff main...<branch>`
-   (use the repo's real base branch), check it against the original brief,
-   and reply with a PASS/FAIL verdict and findings with file:line. Use the
-   review model if the user named one. Read the verdict, then spot-check
-   the diff yourself. **You are the final judge.**
+   review task (`start_task` with `readonly: true`, no worktree, `directory`
+   = the implementer's worktree path). Tell the reviewer to run
+   `git diff <base>...<branch>` using the `base:` and `branch:` values
+   `start_task` returned for the implementation task, check it against the
+   original brief, and reply with a PASS/FAIL verdict and findings with
+   file:line. Use the review model if the user named one. Right after
+   dispatching, show the user the `web:` / `watch:` line from `start_task`
+   once so they can watch. Read the verdict, then spot-check the diff
+   yourself. **You are the final judge.**
 5. **Fix.** On FAIL, `send_message` the findings to the **original
    implementer** task, not a new one, so it keeps its context. Go back to
    step 3, then review again.

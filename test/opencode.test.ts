@@ -48,3 +48,17 @@ test("truncate", () => {
 test("deriveStatus: newer user message after a finished turn is running", () => {
   assert.deepEqual(deriveStatus(false, [user, asst("stop", "x"), user]), { status: "running" });
 });
+
+test("deriveStatus: length finish is an error", () => {
+  assert.deepEqual(deriveStatus(false, [user, asst("length", "hit the output limit")]), {
+    status: "error",
+    message: "finish: length\nhit the output limit",
+  });
+});
+
+test("deriveStatus: content-filter finish is an error", () => {
+  assert.deepEqual(deriveStatus(false, [user, asst("content-filter", "blocked")]), {
+    status: "error",
+    message: "finish: content-filter\nblocked",
+  });
+});

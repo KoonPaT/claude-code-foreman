@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { createWorktree, discardWorktree, mergeWorktree } from "../server/git.ts";
@@ -29,6 +29,7 @@ test("createWorktree makes a sibling worktree on a slugged branch", () => {
   const r = repo();
   const w = createWorktree(r, "Login Page!");
   assert.match(w.branch, /^foreman\/login-page-[0-9a-f]{4}$/);
+  assert.equal(w.base, "main");
   assert.equal(basename(dirname(w.worktree)), basename(r) + ".foreman");
   assert.ok(existsSync(w.worktree));
   assert.ok(git(r, "worktree", "list").includes(basename(w.worktree)));
@@ -69,6 +70,36 @@ test("mergeWorktree refuses when the repo has dirty files the branch touches", (
   commitIn(w.worktree, "a.txt", "branch\n");
   writeFileSync(join(r, "a.txt"), "local edit\n");
   assert.throws(() => mergeWorktree(w), /uncommitted changes in a\.txt/);
+  assert.ok(existsSync(w.worktree));
+});
+
+test("mergeWorktree catches dirty files with spaces in their names", () => {
+  const r = repo();
+  const w = createWorktree(r, "spaces");
+  commitIn(w.worktree, "a b.txt", "branch\n");
+  writeFileSync(join(r, "a b.txt"), "local edit\n");
+  assert.throws(() => mergeWorktree(w), /uncommitted changes in a b\.txt/);
+  assert.ok(existsSync(w.worktree));
+});
+
+test("mergeWorktree catches dirty files renamed in the branch", () => {
+  const r = repo();
+  const w = createWorktree(r, "rename");
+  git(w.worktree, "mv", "a.txt", "moved.txt");
+  git(w.worktree, "commit", "-qm", "rename");
+  writeFileSync(join(r, "a.txt"), "local edit\n");
+  assert.throws(() => mergeWorktree(w), /uncommitted changes in a\.txt/);
+  assert.ok(existsSync(w.worktree));
+});
+
+test("mergeWorktree catches untracked files inside new directories", () => {
+  const r = repo();
+  const w = createWorktree(r, "untracked");
+  mkdirSync(join(w.worktree, "src"), { recursive: true });
+  commitIn(w.worktree, "src/new.ts", "n\n");
+  mkdirSync(join(r, "src"), { recursive: true });
+  writeFileSync(join(r, "src/new.ts"), "local\n");
+  assert.throws(() => mergeWorktree(w), /uncommitted changes in src\/new\.ts/);
   assert.ok(existsSync(w.worktree));
 });
 

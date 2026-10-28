@@ -57,7 +57,8 @@ Restart Claude Code. `/mcp` should then list `opencode-foreman`.
   ruleset denies `git push`, `npm publish`, `sudo`, destructive `rm -rf`,
   writes outside the task directory, and interactive questions. A denied
   command is reported back and never hangs the task. Your own opencode
-  config is untouched.
+  config is untouched. The bash deny list is a best-effort pattern match,
+  not a sandbox: a determined worker can still find a way to write or push.
 - **Worktrees.** With `worktree: true`, the task runs in its own git
   worktree at `<repo>/../<repo>.foreman/<slug>`, on the branch
   `foreman/<slug>`. `finish_task` merges or discards the branch and removes
@@ -73,6 +74,13 @@ Just ask Claude, naming a model if you want one:
 > Use opencode with opencodex/gpt-5.5 to implement the plan in docs/plan.md, two tasks in parallel.
 
 If you name no model, opencode's default is used.
+
+## Watching workers
+
+Every `start_task` returns a `web:` URL and a `watch:` command for the new
+session. Open the `web:` URL in a browser to watch the worker live, or run
+the `watch:` command (`opencode attach <url> --session <id>`) to attach.
+`list_tasks` gives a quick summary of running and finished tasks.
 
 ## Tests
 
