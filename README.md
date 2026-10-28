@@ -73,7 +73,14 @@ Just ask Claude, naming a model if you want one:
 
 > Use opencode with opencodex/gpt-5.5 to implement the plan in docs/plan.md, two tasks in parallel.
 
-If you name no model, opencode's default is used.
+If you name no model, Claude asks you to pick one. To control the choices,
+set your favorites in `~/.claude/settings.json`:
+
+```json
+"env": { "FOREMAN_MODELS": "opencodex/gpt-6-luna,opencodex/tokenme/google/gemma-4-31b-it" }
+```
+
+`list_models` shows them first, under `favorites:`.
 
 ## Watching workers
 

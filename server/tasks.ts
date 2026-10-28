@@ -34,9 +34,12 @@ export async function listModels(): Promise<string> {
     "GET",
     "/config/providers",
   );
-  return r.providers
+  const all = r.providers
     .flatMap((p) => Object.keys(p.models).map((m) => `${p.id}/${m}${r.default[p.id] === m ? " (default)" : ""}`))
     .join("\n");
+  // FOREMAN_MODELS: comma-separated provider/model ids the user picks from most often
+  const fav = (process.env.FOREMAN_MODELS ?? "").split(",").map((m) => m.trim()).filter(Boolean);
+  return fav.length ? `favorites:\n${fav.join("\n")}\n\nall:\n${all}` : all;
 }
 
 const promptBody = (text: string, model?: string, agent?: string) => ({

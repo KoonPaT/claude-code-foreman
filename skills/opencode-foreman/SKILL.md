@@ -15,10 +15,16 @@ Tools (MCP server `opencode-foreman`): `list_models`, `start_task`,
 
 ## Model
 
-Use the model the user named, as `provider/model` (check `list_models` if
-unsure of the exact id). If the user named none, omit `model` so opencode
-uses its default. If the user named a separate model for review, use it for
-review tasks.
+Use the model the user named, as `provider/model`. A short name ("gemma",
+"luna") is fine: match it against `list_models` and use the full id.
+
+If the user named no model, **ask before dispatching**. Call `list_models`.
+If it shows a `favorites:` section, offer those. Otherwise offer the
+`(default)` model plus a few likely ones. With at most 4 choices, use
+AskUserQuestion. With more, send them as a numbered list and wait for the
+reply. Ask once per request, and use that model for every task in it. If
+the user named a separate model for review, use it for review tasks; if
+not, ask in the same question whether review should use the same model.
 
 ## The loop
 
