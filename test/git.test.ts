@@ -122,6 +122,17 @@ test("mergeWorktree still merges when the worktree folder is locked", { skip: pr
   }
 });
 
+test("mergeWorktree reports a branch git still ties to a worktree instead of throwing", () => {
+  const r = repo();
+  const w = createWorktree(r, "gitlocked");
+  commitIn(w.worktree, "b.txt", "b\n");
+  git(r, "worktree", "lock", w.worktree); // remove fails and the worktree stays registered
+  const out = mergeWorktree(w);
+  assert.match(out, /merged/);
+  assert.match(out, /branch foreman\/gitlocked-[0-9a-f]{4} kept/);
+  assert.ok(existsSync(join(r, "b.txt")));
+});
+
 test("discardWorktree removes branch and dir", () => {
   const r = repo();
   const w = createWorktree(r, "nope");

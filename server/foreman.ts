@@ -28,6 +28,7 @@ const tools = [
   ["finish_task", "Merge or discard a worktree task's branch", obj({ ...tid, action: { type: "string", enum: ["merge", "discard"] } }, ["task_id", "action"])],
 ].map(([name, description, inputSchema]) => ({ name, description, inputSchema }));
 
+let ready: Promise<void> | undefined; // shared by concurrent calls so a dead server is spawned once
 const send = (m: object) => process.stdout.write(JSON.stringify({ jsonrpc: "2.0", ...m }) + "\n");
 
 async function handle(msg: any) {
@@ -40,7 +41,8 @@ async function handle(msg: any) {
     try {
       const h = Object.hasOwn(handlers, params?.name) ? handlers[params.name] : undefined;
       if (!h) throw new Error(`unknown tool ${params?.name}`);
-      await ensureServer(); // every call: the detached server may have died since the last one
+      // re-checked every call: the detached server may have died since the last one
+      await (ready ??= ensureServer().finally(() => (ready = undefined)));
       return send({ id, result: { content: [{ type: "text", text: await h(params.arguments ?? {}) }] } });
     } catch (e: any) {
       console.error(e);

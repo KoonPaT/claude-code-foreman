@@ -62,6 +62,16 @@ const mergeInProgress = (repo: string) => {
   }
 };
 
+// the merge/discard already happened; a branch git still ties to a worktree is reported, not thrown
+const dropBranch = (repo: string, flag: string, branch: string) => {
+  try {
+    git(repo, "branch", flag, branch);
+    return "";
+  } catch {
+    return `; branch ${branch} kept (still tied to a worktree) — delete it later`;
+  }
+};
+
 export function mergeWorktree(info: WorktreeInfo): string {
   const { repo, branch, worktree } = info;
   if (git(worktree, "status", "--porcelain")) throw new Error("worktree has uncommitted changes; ask the worker to commit");
@@ -84,9 +94,8 @@ export function mergeWorktree(info: WorktreeInfo): string {
     git(repo, "worktree", "prune");
     leftover = worktree;
   }
-  git(repo, "branch", "-d", branch);
   const kept = leftover ? `; worktree folder still on disk (in use): ${leftover} — delete it later` : "; worktree removed";
-  return `merged ${branch} into ${basename(repo)} (${sha})${kept}`;
+  return `merged ${branch} into ${basename(repo)} (${sha})${kept}${dropBranch(repo, "-d", branch)}`;
 }
 
 export function discardWorktree(info: WorktreeInfo): string {
@@ -98,7 +107,6 @@ export function discardWorktree(info: WorktreeInfo): string {
     leftover = worktree;
   }
   git(repo, "worktree", "prune");
-  git(repo, "branch", "-D", branch);
   const kept = leftover ? `; worktree folder still on disk (in use): ${leftover} — delete it later` : "; worktree removed";
-  return `discarded ${branch}${kept}`;
+  return `discarded ${branch}${kept}${dropBranch(repo, "-D", branch)}`;
 }
