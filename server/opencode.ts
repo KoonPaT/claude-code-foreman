@@ -46,7 +46,7 @@ export async function ensureServer(): Promise<void> {
     detached: true,
     stdio: "ignore",
     shell: process.platform === "win32",
-  }).unref();
+  }).on("error", () => {}).unref(); // ENOENT: fall through to the poll timeout error
   for (let i = 0; i < 60; i++) {
     await new Promise((r) => setTimeout(r, 500));
     if (await up()) return;
