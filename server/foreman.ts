@@ -38,7 +38,7 @@ async function handle(msg: any) {
   if (method === "tools/list") return send({ id, result: { tools } });
   if (method === "tools/call") {
     try {
-      const h = handlers[params?.name];
+      const h = Object.hasOwn(handlers, params?.name) ? handlers[params.name] : undefined;
       if (!h) throw new Error(`unknown tool ${params?.name}`);
       await (ready ??= ensureServer().catch((e) => ((ready = undefined), Promise.reject(e))));
       return send({ id, result: { content: [{ type: "text", text: await h(params.arguments ?? {}) }] } });

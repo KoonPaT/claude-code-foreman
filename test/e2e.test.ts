@@ -5,7 +5,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomBytes } from "node:crypto";
 import { ensureServer } from "../server/opencode.ts";
-import { startTask, waitTask, sendMessage, listTasks, taskDetails } from "../server/tasks.ts";
+import { execFileSync } from "node:child_process";
+import { startTask, waitTask, sendMessage, listTasks, taskDetails, finishTask } from "../server/tasks.ts";
 
 const T = { timeout: 300_000, skip: process.env.FOREMAN_E2E !== "1" };
 const model = "opencode/big-pickle";
@@ -56,6 +57,21 @@ test("e2e", T, async (t) => {
     const q = await run("Before doing anything, ask me which color to use, using the QUESTION convention", dir());
     const out = await waitTask({ task_ids: [q], timeout_sec: 280 });
     assert.match(out, /: needs_input\nquestion: \S/, await dump(q, out));
+  });
+
+  await t.test("worktree task merges back", T, async () => {
+    const r = dir();
+    const g = (...a: string[]) => execFileSync("git", ["-C", r, ...a]);
+    g("init", "-q", "-b", "main");
+    g("config", "user.name", "t");
+    g("config", "user.email", "t@t");
+    g("commit", "-q", "--allow-empty", "-m", "init");
+    const w = id(await startTask({ prompt: "create feature.txt containing 'feature' and commit it with git", model, directory: r, worktree: true }));
+    ids.push(w);
+    const out = await waitTask({ task_ids: [w], timeout_sec: 280 });
+    assert.match(out, /: done/, await dump(w, out));
+    assert.match(await finishTask({ task_id: w, action: "merge" }), /merged/);
+    assert.ok(existsSync(join(r, "feature.txt")));
   });
 
   await t.test("list_tasks", T, async () => {

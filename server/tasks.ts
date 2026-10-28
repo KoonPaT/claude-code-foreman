@@ -1,5 +1,7 @@
 import { resolve } from "node:path";
 import { api, deriveStatus, parseModel } from "./opencode.ts";
+import { createWorktree, discardWorktree, mergeWorktree } from "./git.ts";
+import type { WorktreeInfo } from "./git.ts";
 import type { Message, StatusResult } from "./opencode.ts";
 
 const PREFIX = "[foreman] ";
@@ -52,15 +54,18 @@ export async function startTask(a: {
   agent?: string;
   worktree?: boolean;
 }): Promise<string> {
-  if (a.worktree) throw new Error("worktree support not implemented");
   if (a.model) parseModel(a.model);
-  const directory = a.directory ?? process.cwd();
+  const title = a.title ?? a.prompt.slice(0, 50);
+  const wt = a.worktree ? createWorktree(a.directory ?? process.cwd(), title) : undefined;
+  const directory = wt?.worktree ?? a.directory ?? process.cwd();
   const s = await api<Session>("POST", "/session", {
     directory,
-    body: { title: PREFIX + (a.title ?? a.prompt.slice(0, 50)), metadata: { foreman: true }, permission: PERMISSION },
+    body: { title: PREFIX + title, metadata: { foreman: true, ...wt }, permission: PERMISSION },
   });
   await api<void>("POST", `/session/${s.id}/prompt_async`, { directory, body: promptBody(a.prompt, a.model, a.agent) });
-  return `task_id: ${s.id}`;
+  return `task_id: ${s.id}` + (wt ? `
+branch: ${wt.branch}
+worktree: ${wt.worktree}` : "");
 }
 
 export async function taskStatus(a: { task_id: string }): Promise<string> {
@@ -68,7 +73,8 @@ export async function taskStatus(a: { task_id: string }): Promise<string> {
 }
 
 export async function waitTask(a: { task_ids: string[]; timeout_sec?: number }): Promise<string> {
-  const deadline = Date.now() + Math.min(a.timeout_sec ?? 300, 3600) * 1000;
+  const sec = Number(a.timeout_sec ?? 300);
+  const deadline = Date.now() + (Number.isFinite(sec) ? Math.min(Math.max(sec, 0), 3600) : 300) * 1000;
   for (;;) {
     const all = await Promise.all(a.task_ids.map(async (id) => [id, await statusOf(id)] as const));
     const fin = all.filter(([, s]) => s.status !== "running");
@@ -125,6 +131,16 @@ export async function taskDetails(a: { task_id: string }): Promise<string> {
   return out.join("\n\n").slice(0, 20000);
 }
 
+export async function finishTask(a: { task_id: string; action: "merge" | "discard" }): Promise<string> {
+  const { metadata } = await api<Session>("GET", `/session/${a.task_id}`);
+  if (!metadata?.worktree) throw new Error("task has no worktree");
+  if ((await statusOf(a.task_id)).status === "running") throw new Error("task is still running");
+  const info = metadata as WorktreeInfo;
+  if (a.action === "merge") return mergeWorktree(info);
+  if (a.action === "discard") return discardWorktree(info);
+  throw new Error(`action must be merge or discard`);
+}
+
 export const handlers: Record<string, (args: any) => Promise<string>> = {
   list_models: listModels,
   start_task: startTask,
@@ -134,7 +150,5 @@ export const handlers: Record<string, (args: any) => Promise<string>> = {
   list_tasks: listTasks,
   cancel_task: cancelTask,
   task_details: taskDetails,
-  finish_task: async () => {
-    throw new Error("not implemented");
-  },
+  finish_task: finishTask,
 };
