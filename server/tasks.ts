@@ -8,7 +8,7 @@ const PREFIX = "[foreman] ";
 const PREAMBLE =
   "You are a worker dispatched by a foreman (another AI) who cannot see your screen. Work autonomously to finish the task. If you are blocked by something genuinely unclear, stop and end your reply with a single line starting with `QUESTION:` followed by your question. If a command or tool is denied, do not retry it; mention it in your final reply. When you finish, reply with a concise summary: what you changed, files touched, how you verified it, and anything left undone. When working in a git worktree, commit your work before replying.";
 
-const bashDeny = ["*git push*", "*npm publish*", "*sudo *", "*rm -rf /*", "*rm -rf ~*", "*rm -rf ..*", "*Remove-Item*-Recurse*"];
+const bashDeny = ["*git*push*", "*npm*publish*", "*sudo *", "*rm -rf /*", "*rm -rf ~*", "*rm -rf ..*", "*Remove-Item*-Recurse*"];
 const PERMISSION = [
   { permission: "*", pattern: "*", action: "allow" },
   { permission: "question", pattern: "*", action: "deny" },
@@ -59,19 +59,24 @@ export async function startTask(a: {
   if (a.readonly && a.worktree) throw new Error("readonly tasks cannot use a worktree");
   const title = a.title ?? a.prompt.slice(0, 50);
   const wt = a.worktree ? createWorktree(a.directory ?? process.cwd(), title) : undefined;
-  const directory = wt?.worktree ?? a.directory ?? process.cwd();
-  // ponytail: readonly only denies the `edit` tool; bash can still write files. Upgrade path: also
-  // deny bash write patterns (e.g. "*> *", "*writeFile*") for a fully read-only worker.
-  const permission = a.readonly ? [...PERMISSION, { permission: "edit", pattern: "*", action: "deny" }] : PERMISSION;
-  const s = await api<Session>("POST", "/session", {
-    directory,
-    body: { title: PREFIX + title, metadata: { foreman: true, ...wt }, permission },
-  });
-  await api<void>("POST", `/session/${s.id}/prompt_async`, { directory, body: promptBody(a.prompt, a.model, a.agent) });
-  const out = [`task_id: ${s.id}`];
-  if (wt) out.push(`branch: ${wt.branch}`, `base: ${wt.base}`, `worktree: ${wt.worktree}`);
-  out.push(`watch: opencode attach ${baseUrl()} --session ${s.id}`, `web: ${baseUrl()}`);
-  return out.join("\n");
+  try {
+    const directory = wt?.worktree ?? a.directory ?? process.cwd();
+    // ponytail: readonly only denies the `edit` tool; bash can still write files. Upgrade path: also
+    // deny bash write patterns (e.g. "*> *", "*writeFile*") for a fully read-only worker.
+    const permission = a.readonly ? [...PERMISSION, { permission: "edit", pattern: "*", action: "deny" }] : PERMISSION;
+    const s = await api<Session>("POST", "/session", {
+      directory,
+      body: { title: PREFIX + title, metadata: { foreman: true, ...wt }, permission },
+    });
+    await api<void>("POST", `/session/${s.id}/prompt_async`, { directory, body: promptBody(a.prompt, a.model, a.agent) });
+    const out = [`task_id: ${s.id}`];
+    if (wt) out.push(`branch: ${wt.branch}`, `base: ${wt.base}`, `worktree: ${wt.worktree}`);
+    out.push(`watch: opencode attach ${baseUrl()} --session ${s.id}`, `web: ${baseUrl()}`);
+    return out.join("\n");
+  } catch (e) {
+    if (wt) try { discardWorktree(wt) } catch {}
+    throw e;
+  }
 }
 
 export async function taskStatus(a: { task_id: string }): Promise<string> {

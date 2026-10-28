@@ -28,6 +28,8 @@ export function deriveStatus(busy: boolean, messages: Message[]): StatusResult {
   }
   const finish = last.info.finish;
   if (!finish || finish === "tool-calls") return { status: "running" };
+  if (finish === "length" || finish === "content-filter" || finish === "error")
+    return { status: "error", message: truncate(text ? `finish: ${finish}\n${text}` : `finish: ${finish}`) };
   const q = text.match(/^QUESTION:(.*)$/gm)?.at(-1)?.slice("QUESTION:".length).trim();
   if (q !== undefined) return { status: "needs_input", question: q, message: truncate(text) };
   return { status: "done", message: truncate(text) };
@@ -37,16 +39,23 @@ export function baseUrl(): string {
   return process.env.FOREMAN_OPENCODE_URL ?? "http://127.0.0.1:4096";
 }
 
-const up = () => fetch(baseUrl() + "/doc").then((r) => r.ok, () => false);
+const up = () =>
+  fetch(baseUrl() + "/doc", { signal: AbortSignal.timeout(2000) }).then((r) => r.ok, () => false);
 
 export async function ensureServer(): Promise<void> {
   if (await up()) return;
   if (process.env.FOREMAN_NO_SPAWN) throw new Error(`opencode not reachable at ${baseUrl()}`);
   const port = new URL(baseUrl()).port || "4096";
+  // the detached server outlives us, so don't leak test-run env (NODE_TEST_*/FOREMAN_E2E) into it
+  const env: Record<string, string> = {};
+  for (const [k, v] of Object.entries(process.env))
+    if (v !== undefined && !k.startsWith("NODE_TEST_") && k !== "FOREMAN_E2E") env[k] = v;
   spawn("opencode", ["serve", "--port", port], {
     detached: true,
     stdio: "ignore",
     shell: process.platform === "win32",
+    windowsHide: true,
+    env,
   }).on("error", () => {}).unref(); // ENOENT: fall through to the poll timeout error
   for (let i = 0; i < 60; i++) {
     await new Promise((r) => setTimeout(r, 500));
@@ -65,6 +74,7 @@ export async function api<T>(
     method,
     headers: opts.body === undefined ? undefined : { "content-type": "application/json" },
     body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
+    signal: AbortSignal.timeout(30_000),
   });
   const text = await res.text();
   if (!res.ok) throw new Error(`opencode ${method} ${path} → ${res.status}: ${text}`);

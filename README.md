@@ -57,7 +57,8 @@ Restart Claude Code. `/mcp` should then list `opencode-foreman`.
   ruleset denies `git push`, `npm publish`, `sudo`, destructive `rm -rf`,
   writes outside the task directory, and interactive questions. A denied
   command is reported back and never hangs the task. Your own opencode
-  config is untouched.
+  config is untouched. The bash deny list is a best-effort pattern match,
+  not a sandbox: a determined worker can still find a way to write or push.
 - **Worktrees.** With `worktree: true`, the task runs in its own git
   worktree at `<repo>/../<repo>.foreman/<slug>`, on the branch
   `foreman/<slug>`. `finish_task` merges or discards the branch and removes
