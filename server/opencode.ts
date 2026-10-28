@@ -41,6 +41,7 @@ const up = () => fetch(baseUrl() + "/doc").then((r) => r.ok, () => false);
 
 export async function ensureServer(): Promise<void> {
   if (await up()) return;
+  if (process.env.FOREMAN_NO_SPAWN) throw new Error(`opencode not reachable at ${baseUrl()}`);
   const port = new URL(baseUrl()).port || "4096";
   spawn("opencode", ["serve", "--port", port], {
     detached: true,
